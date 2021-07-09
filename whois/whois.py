@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Whois client for python
 
@@ -38,7 +37,12 @@ import socket
 import sys
 import re
 from builtins import object
-from builtins import *
+from builtins import standard_library
+
+import logging
+standard_library.install_aliases()
+
+logger = logging.getLogger(__name__)
 
 
 class NICClient(object):
@@ -89,7 +93,6 @@ class NICClient(object):
     CHAT_HOST = "whois.nic.chat"
     WEBSITE_HOST = "whois.nic.website"
     NL_HOST = 'whois.domain-registry.nl'
-    
 
     WHOIS_RECURSE = 0x01
     WHOIS_QUICK = 0x02
@@ -104,7 +107,8 @@ class NICClient(object):
         whois server for getting contact details.
         """
         nhost = None
-        match = re.compile(r'Domain Name: {}\s*.*?Whois Server: (.*?)\s'.format(query), flags=re.IGNORECASE | re.DOTALL).search(buf)
+        match = re.compile(r'Domain Name: {}\s*.*?Whois Server: (.*?)\s'.format(query),
+                           flags=re.IGNORECASE | re.DOTALL).search(buf)
         if match:
             nhost = match.groups()[0]
             # if the whois address is domain.tld/something then
@@ -129,7 +133,8 @@ class NICClient(object):
             try:
                 import socks
             except ImportError as e:
-                print("You need to install the Python socks module. Install PIP (https://bootstrap.pypa.io/get-pip.py) and then 'pip install PySocks'")
+                logger.error("You need to install the Python socks module." +
+                             "Install PIP (https://bootstrap.pypa.io/get-pip.py) and then 'pip install PySocks'")
                 raise e
             socks_user, socks_password = None, None
             if "@" in os.environ["SOCKS"]:
@@ -140,13 +145,16 @@ class NICClient(object):
             socksproxy, port = proxy.split(":")
             socks_proto = socket.AF_INET
             if socket.AF_INET6 in [sock[0] for sock in socket.getaddrinfo(socksproxy, port)]:
-                socks_proto=socket.AF_INET6
+                socks_proto = socket.AF_INET6
             s = socks.socksocket(socks_proto)
             s.set_proxy(socks.SOCKS5, socksproxy, int(port), True, socks_user, socks_password)
         else:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(10)
-        try: # socket.connect in a try, in order to allow things like looping whois on different domains without stopping on timeouts: https://stackoverflow.com/questions/25447803/python-socket-connection-exception
+        # socket.connect in a try, in order to allow things like looping whois on different domains
+        # without stopping on timeouts:
+        # https://stackoverflow.com/questions/25447803/python-socket-connection-exception
+        try:
             s.connect((hostname, 43))
             try:
                 query = query.decode('utf-8')
@@ -180,10 +188,10 @@ class NICClient(object):
                 nhost = self.findwhois_server(response, hostname, query)
             if nhost is not None:
                 response += self.whois(query, nhost, 0)
-        except socket.error as exc: # 'response' is assigned a value (also a str) even on socket timeout
-            print("Error trying to connect to socket: closing socket") 
+        except socket.error:  # 'response' is assigned a value (also a str) even on socket timeout
+            logger.warning("Error trying to connect to socket: closing socket")
             s.close()
-            response = "Socket not responding"   
+            response = "Socket not responding"
         return response
 
     def choose_server(self, domain):
@@ -258,10 +266,9 @@ class NICClient(object):
         elif tld == 'website':
             return NICClient.WEBSITE_HOST
         elif tld == 'nl':
-            return NICClient.NL_HOST    
+            return NICClient.NL_HOST
         else:
             return tld + NICClient.QNICHOST_TAIL
-        
 
     def whois_lookup(self, options, query_arg, flags):
         """Main entry point: Perform initial lookup on TLD whois server,
@@ -301,8 +308,6 @@ def parse_command_line(argv):
     """Options handling mostly follows the UNIX whois(1) man page, except
     long-form options can also be used.
     """
-    flags = 0
-
     usage = "usage: %prog [options] name"
 
     parser = optparse.OptionParser(add_help_option=False, usage=usage)
@@ -368,4 +373,4 @@ if __name__ == "__main__":
     options, args = parse_command_line(sys.argv)
     if options.b_quicklookup:
         flags = flags | NICClient.WHOIS_QUICK
-    print(nic_client.whois_lookup(options.__dict__, args[1], flags))
+    logger.debug(nic_client.whois_lookup(options.__dict__, args[1], flags))
