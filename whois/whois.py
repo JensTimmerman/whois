@@ -88,6 +88,7 @@ class NICClient(object):
     IST_HOST = "whois.afilias-srs.net"
     CHAT_HOST = "whois.nic.chat"
     WEBSITE_HOST = "whois.nic.website"
+    NL_HOST = 'whois.domain-registry.nl'
     
 
     WHOIS_RECURSE = 0x01
@@ -256,8 +257,11 @@ class NICClient(object):
             return NICClient.CHAT_HOST
         elif tld == 'website':
             return NICClient.WEBSITE_HOST
+        elif tld == 'nl':
+            return NICClient.NL_HOST    
         else:
             return tld + NICClient.QNICHOST_TAIL
+        
 
     def whois_lookup(self, options, query_arg, flags):
         """Main entry point: Perform initial lookup on TLD whois server,
